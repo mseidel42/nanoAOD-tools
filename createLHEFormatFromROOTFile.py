@@ -96,5 +96,5 @@ class LHEPrinter(object):
       self.output.write(part.printPart())   
     self.output.write(self.baseender)
 
-theP = LHEPrinter(args[1],"Events",args[2],undoDecays=[],chunkers=int(args[3]), prDict={str(i):i for i in range(1000)}) 
+theP = LHEPrinter(args[1],"Events",args[2],undoDecays=[int(i) for i in args[4:]],chunkers=int(args[3]), prDict={str(i):i for i in range(1000)}) #PRDict by default set to not change anything as it is rare to use it 
 theP.insideLoop()
