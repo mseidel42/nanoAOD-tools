@@ -32,7 +32,7 @@ class HEPPart(object):
 
 
 class LHEPrinter(object):
-  def __init__(self,theFile,theTree,outputLHE,undoDecays=[], chunkers=-1, prDict={}):
+  def __init__(self,theFile,theTree,outputLHE,undoDecays=[], chunkers=-1, prDict={str(i):i for i in range(1000)}):
     """
     theFile : path to input root file with the whole LHEinformation
     theTree : number of ttree inside the file, usually "Events"
@@ -44,8 +44,15 @@ class LHEPrinter(object):
 
     self.prDict = prDict
     self.outputLHE = outputLHE
-    self.fil  = ROOT.TFile(theFile,"OPEN")
-    self.tree = self.fil.Get(theTree)
+    
+    if isinstance(theFile, str):
+      self.fil  = ROOT.TFile(theFile,"OPEN")
+    else:
+      self.fil = theFile # assume that we were given a TFile directly
+    if isinstance(theTree, str):
+      self.tree = self.fil.Get(theTree)
+    else:
+      self.tree = theTree # assume that we were given a TFile directly
     self.undoDecays = undoDecays
     self.baseheader =  "<event nplo=\" {nplo} \" npnlo=\" {npnlo} \">\n"
     self.baseline1 = " {nparts}      {prid} {weight} {scale} {aqed} {aqcd}\n"
@@ -111,5 +118,7 @@ class LHEPrinter(object):
     self.output.write(self.rwgt.format(rwl_type=ev.LHE_rwl_type, rwl_index=ev.LHE_rwl_index, rwl_weight=ev.LHE_rwl_weight, rwl_seed=ev.LHE_rwl_seed, rwl_n1=ev.LHE_rwl_n1, rwl_n2=ev.LHE_rwl_n2))
     self.output.write(self.baseender)
 
-theP = LHEPrinter(args[1],"Events",args[2],undoDecays=[],chunkers=-1, prDict={str(i):i for i in range(1000)}) #PRDict by default set to not change anything as it is rare to use it 
-theP.insideLoop()
+#theP = LHEPrinter(args[1],"Events",args[2],undoDecays=[],chunkers=-1, prDict={str(i):i for i in range(1000)}) #PRDict by default set to not change anything as it is rare to use it 
+#theP.insideLoop()
+
+printLHEModule = lambda : LHEPrinter() 
