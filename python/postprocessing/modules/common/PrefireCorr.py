@@ -108,12 +108,15 @@ class PrefCorr(Module):
                 if self.UseEMpT:
                     jetpt *= (jet.chEmEF + jet.neEmEF)
 
-                if jetpt >= self.JetMinPt and abs(
-                        jet.eta) <= self.JetMaxEta and abs(
-                            jet.eta) >= self.JetMinEta:
-                    jetpf *= 1 - \
-                        self.GetPrefireProbability(
-                            self.jet_map, jet.eta, jetpt, self.JetMaxPt)
+                # only consider jets there are not made out of the prompt muon
+                # because "Jet" collection is made of jets that are not cleaned
+                # this should be equivalent to a DR-based cleaning for muons
+                # might also want to require some minimal JetId to consider the jet, so to
+                # be consistent with how the maps where computed, but not really needed
+                if jet.muEF > 0.5: continue
+                
+                if jetpt >= self.JetMinPt and abs(jet.eta) <= self.JetMaxEta and abs(jet.eta) >= self.JetMinEta:
+                    jetpf *= 1 - self.GetPrefireProbability(self.jet_map, jet.eta, jetpt, self.JetMaxPt)
 
                 phopf = self.EGvalue(event, jid)
                 # The higher prefire-probablity between the jet and the
