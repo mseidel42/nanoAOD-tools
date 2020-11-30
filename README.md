@@ -5,14 +5,14 @@ Tools for working with NanoAOD (requiring only python + root, not CMSSW)
 
 You need to setup python 2.7 and a recent ROOT version first.
 
-    cmsrel CMSSW_10_2_9
-    cd CMSSW_10_2_9/src/
+    cmsrel CMSSW_10_6_18/
+    cd CMSSW_10_6_18/src/
     cmsenv	   
     voms-proxy-init --voms cms
     source /cvmfs/cms.cern.ch/crab3/crab.sh
-    git clone https://github.com/emanca/nanoAOD-tools.git PhysicsTools/NanoAODTools
+    git clone https://github.com/sroychow/nanoAOD-tools.git PhysicsTools/NanoAODTools
     cd PhysicsTools/NanoAODTools
-    git checkout origin/wmass
+    git checkout wmassul
     scram b -j 8
 
 ## Run local tests

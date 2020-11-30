@@ -19,8 +19,7 @@ keep HLT_SingleMu24
 keep HLT_SingleMu27
 keep Idx_mu1
 keep Idx_mu2
-keep Vtype
-keep Vtype_subcat
+keep Vtype*
 keep MET_filters
 keep nVetoElectrons
 keep IsTObjmatched_mu1

@@ -9,7 +9,13 @@ drop TkMET*
 keep PV*
 keep HLT_SingleMu24
 keep HLT_SingleMu27
+keep IsTObjmatched_mu1
+keep IsTObjmatched_mu2
 keep nVetoElectrons
-keep *Vtype*
+keep Vtype*
 keep *_mu1
 keep *_mu2
+keep nPair*
+keep Idx_tag*
+keep Idx_probe*
+keep Is_pass*

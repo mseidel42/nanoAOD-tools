@@ -3,25 +3,10 @@ import os, sys
 import ROOT
 import argparse
 import subprocess
-
 ROOT.PyConfig.IgnoreCommandLineOptions = True
 from importlib import import_module
 from PhysicsTools.NanoAODTools.postprocessing.framework.postprocessor import PostProcessor
-
-from PhysicsTools.NanoAODTools.postprocessing.modules.common.puWeightProducer import *
-from PhysicsTools.NanoAODTools.postprocessing.modules.jme.jetmetUncertainties import *
-from PhysicsTools.NanoAODTools.postprocessing.modules.jme.jetRecalib import *
-from PhysicsTools.NanoAODTools.postprocessing.modules.jme.jetmetHelperRun2 import *
-from PhysicsTools.NanoAODTools.postprocessing.modules.common.muonScaleResProducer import *
-from PhysicsTools.NanoAODTools.postprocessing.modules.common.PrefireCorr import *
-
-from PhysicsTools.NanoAODTools.postprocessing.wmass.preSelection import *
-from PhysicsTools.NanoAODTools.postprocessing.wmass.CSVariables import *
-from PhysicsTools.NanoAODTools.postprocessing.wmass.Vproducer import *
-from PhysicsTools.NanoAODTools.postprocessing.wmass.genLepSelection import *
-from PhysicsTools.NanoAODTools.postprocessing.wmass.lheWeightsFlattener import *
-from PhysicsTools.NanoAODTools.postprocessing.wmass.triggerMatchProducer import *
-from PhysicsTools.NanoAODTools.postprocessing.wmass.jetReCleaner import *
+from PhysicsTools.NanoAODTools.postprocessing.wmass.SequenceBuilder import SequenceBuilder
 
 def makeDummyFile():
     f = open('dummy_exec.sh', 'w')
@@ -143,41 +128,9 @@ if args.condor:
 if crab:
     from PhysicsTools.NanoAODTools.postprocessing.framework.crabhelper import inputFiles,runsAndLumis
 
-################################################ JEC
-#Function definition
-#createJMECorrector(isMC=True, dataYear=2016, runPeriod="B", jesUncert="Total", jetType="AK4PFchs", noGroom=False,
-#                   metBranchName="MET", applySmearing=True, isFastSim=False, applyHEMfix=False, splitJER=False, saveMETUncs=['T1', 'T1Smear'])
-
-jmeCorrections = createJMECorrector(isMC=isMC, dataYear=dataYear, runPeriod=runPeriod, jesUncert=jesUncert, jetType="AK4PFchs", noGroom=False, 
-                                    metBranchName="MET", applySmearing=True, isFastSim=False, applyHEMfix=False, splitJER=False, 
-                                    saveMETUncs=['T1', 'T1Smear'])
-################################################ PU
-#pu reweight modules
-puWeightProducer_allData = puWeight_UL2016_allData
-puWeightProducer         = puWeight_UL2016_postVFP if eraVFP == "postVFP" else puWeight_UL2016_preVFP
-if dataYear==2017:
-    puWeightProducer = puWeight_2017
-elif dataYear==2018:
-    puWeightProducer = puWeight_2018
-
-################################################ Muons
-#Rochester correction for muons
-muonScaleRes = muonScaleRes2016
-if dataYear==2017:
-    muonScaleRes = muonScaleRes2017
-elif dataYear==2018:
-    muonScaleRes = muonScaleRes2018
     #print bcolors.OKBLUE, "No module %s will be run" % "muonScaleRes", bcolors.ENDC
 ################################################ GEN
 Wtypes = ['bare', 'preFSR', 'dress'] ## this isn't used... good, because bare and dress no longer exists
-################################################PREFIRE Weights
-jetROOT='L1prefiring_jetpt_2016BtoH'
-photonROOT='L1prefiring_photonpt_2016BtoH'
-if dataYear == 2017: 
-    jetROOT='L1prefiring_jetpt_2017BtoF'
-    photonROOT='L1prefiring_photonpt_2017BtoF'
-prefireCorr= lambda : PrefCorr(jetroot=jetROOT + '.root', jetmapname=jetROOT, photonroot=photonROOT + '.root', photonmapname=photonROOT)
-################################################
 
 ##This is temporary for testing purpose
 #input_dir = "/gpfs/ddn/srm/cms/store/"
@@ -209,56 +162,14 @@ if isMC:
         input_files.append( input_dir + ifileMC )
     else: 
         input_files.extend( inputFile.split(',') )
-    if isTest:
-        modules = [puWeightProducer_allData(),
-                   puWeightProducer(),
-                   muonTriggerMatchProducer(saveIdTriggerObject=False, deltaRforMatch=0.3, minNumberMatchedMuons=0),
-                   JetReCleaner(label="Clean", jetCollection="Jet", particleCollection="Muon", deltaRforCleaning=0.4)
-        ]
-    elif (not genOnly and not trigOnly):
-        modules = [puWeightProducer_allData(),
-                   puWeightProducer(),
-                   preSelection(isMC=isMC, passall=passall, dataYear=dataYear),  
-                   muonTriggerMatchProducer(saveIdTriggerObject=False, deltaRforMatch=0.3, minNumberMatchedMuons=0),
-                   JetReCleaner(label="Clean", jetCollection="Jet", particleCollection="Muon", deltaRforCleaning=0.4),
-                   prefireCorr(),
-                   jmeCorrections(),
-                   genLeptonSelectModule(),
-                   CSAngleModule(), 
-                   VproducerModule(),
-                   flattenLheWeightsModule(),
-        ]
-        # add before recoZproducer
-        if muonScaleRes!= None: modules.insert(3, muonScaleRes())
-    elif genOnly: 
-        modules = [genLeptonSelectModule(),
-                   CSAngleModule(),
-                   VproducerModule()
-               ]
-    elif trigOnly: 
-        modules = [puWeightProducer_allData(),
-                   puWeightProducer(),
-                   preSelection(isMC=True, passall=passall, dataYear=dataYear, trigOnly=True),
-                   muonTriggerMatchProducer(saveIdTriggerObject=False, deltaRforMatch=0.3, minNumberMatchedMuons=0),
-                   JetReCleaner(label="Clean", jetCollection="Jet", particleCollection="Muon", deltaRforCleaning=0.4)        ]
-    else:
-        modules = []
 else:
     if inputFile == '' : #this will run on the hardcoded file above     
         input_files.append( input_dir + ifileDATA )
     else : 
         input_files.extend( inputFile.split(',') )
-    if isTest:
-        modules = [muonTriggerMatchProducer(saveIdTriggerObject=False, deltaRforMatch=0.3, minNumberMatchedMuons=0),
-                   JetReCleaner(label="Clean", jetCollection="Jet", particleCollection="Muon", deltaRforCleaning=0.4)
-        ]
-    else:
-        modules = [preSelection(isMC=isMC, passall=passall, dataYear=dataYear), 
-                   muonTriggerMatchProducer(saveIdTriggerObject=False, deltaRforMatch=0.3, minNumberMatchedMuons=0),
-                   JetReCleaner(label="Clean", jetCollection="Jet", particleCollection="Muon", deltaRforCleaning=0.4)
-        ]
-        if jmeCorrections!=None: modules.insert(1,jmeCorrections())
-        if muonScaleRes!=None:   modules.insert(1, muonScaleRes())
+
+bob=SequenceBuilder(isMC, dataYear, runPeriod, jesUncert, eraVFP, passall, genOnly, isTest)
+modules=bob.buildFinalSequence()
 
 treecut = ("Entry$<" + str(maxEvents) if maxEvents > 0 else None)
 kd_file = "keep_and_drop"
@@ -357,7 +268,7 @@ else:
                   provenance=True,
                   outputbranchsel=kd_file,
                   fwkJobReport=(False if crab==0 else True),
-                  jsonInput=(None if crab==0 else runsAndLumis()), ## marc: revisit this, i don't think i understand right now
+                  jsonInput=(None if crab==0 else runsAndLumis()),
                   compression="LZMA:9"
                   )
     p.run()
