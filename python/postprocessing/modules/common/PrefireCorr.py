@@ -1,11 +1,24 @@
 from PhysicsTools.NanoAODTools.postprocessing.framework.eventloop import Module
 from PhysicsTools.NanoAODTools.postprocessing.framework.datamodel import Collection
+from PhysicsTools.NanoAODTools.postprocessing.tools import deltaR
 import os
 import re
 import ROOT
 import math
 ROOT.PyConfig.IgnoreCommandLineOptions = True
 
+def selectMuons(mu):
+    fiducial = abs(mu.eta)<2.4 and mu.pt>10 and abs(mu.dxy)<0.05 and abs(mu.dz)<0.2
+    if not fiducial: return False
+    return mu.isPFcand and mu.pfRelIso04_all< 0.25 and mu.pt>15
+
+def cleanJetFromMuons(jet, muons, dR):
+    clean=(jet.jetId==7)
+    for mu in muons:
+        if deltaR(mu.eta, mu.phi, jet.eta, jet.phi) <= dR:
+            clean=False
+            break
+    return clean
 
 class PrefCorr(Module):
     def __init__(self,
@@ -83,8 +96,14 @@ class PrefCorr(Module):
     def analyze(self, event):
         """process event, return True (go to next module) or False (fail,
         go to next event)"""
+        
+        #get the muons
+        allMuons = Collection(event, "Muon")
+        selMuons = [mu for mu in allMuons if selectMuons(mu) ]
 
-        jets = Collection(event, "Jet")
+        allJets = Collection(event, "Jet")
+        #clean jets from muons before using 
+        jets=[jet for jet in allJets if cleanJetFromMuons(jet, selMuons, 0.4)]
 
         # Options
         self.JetMinPt = 20  # Min/Max Values may need to be fixed for new maps
