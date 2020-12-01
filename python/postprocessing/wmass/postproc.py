@@ -20,6 +20,15 @@ echo python $*
 python $*'''.format(pwd=os.environ['PWD']))
     f.close()
 
+def getLinesFromFile(fname):
+    try:
+        with open(fname, 'r') as f:
+            return f.readlines()
+    except IOError as e:
+        print("In getLinesFromFile(): couldn't open or read from file %s (%s)." % (fname,e))
+    
+    
+
 class bcolors:
     HEADER = '\033[95m'
     OKBLUE = '\033[94m'
@@ -51,6 +60,8 @@ parser.add_argument('-condor'   , '--condor',  action='store_true',     help="ru
 parser.add_argument('-d'         , '--dsdir'    , type=str , default="", help="input directory of dataset, to be given with condor option!")
 parser.add_argument('-n'         , '--nfiles'   , type=int , default=5 , help="number of files to run per condor job")
 parser.add_argument('-condorDir' , '--condorDir', type=str , default="", help="Mandatory to run with condor, specify output folder to save condor files, logs, etc...")
+parser.add_argument('-condorSkipFiles' , '--condorSkipFiles', type=str , default="", help="When using condor, can specify a file containing a list of files to be skipped (useful for resubmitting failed jobs)")
+parser.add_argument('-condorSelectFiles' , '--condorSelectFiles', type=str , default="", help="As --condorSkipFiles, but keep only these ones (useful for resubmitting failed jobs)")
 
 
 args = parser.parse_args()
@@ -106,6 +117,12 @@ if args.condor:
     if not args.dsdir:
         print 'if you run on condor, give a path which contains the dataset with --dsdir <path>'
         exit(1)
+    if args.condorSkipFiles and args.condorSelectFiles:
+        print 'options --condorSkipFiles and --condorSelectFiles are not compatible, only one list makes sense'
+        exit(1)
+        
+
+
 
 # run with crab
 if crab:
@@ -179,14 +196,23 @@ if args.condor:
     xrdindir  = args.dsdir
     if '/eos/cms/store/' in xrdindir and not 'eoscms' in xrdindir:
         xrdindir = 'root://eoscms.cern.ch/'
-    if '/eos/user/' in xrdindir and not 'eosuser' in xrdindir: ## works also with eos user
+    if '/eos/user/' in xrdindir and not 'eosuser' in xrdindir: ## works also with eos user        
         xrdindir = 'root://eosuser.cern.ch/'
+
+    skipFiles = getLinesFromFile(args.condorSkipFiles) if args.condorSkipFiles else []
+    selectFiles = getLinesFromFile(args.condorSelectFiles) if args.condorSelectFiles else []
 
     ## get the list of files from the given
     listoffiles = []
     for root, dirnames, filenames in os.walk(args.dsdir):
         for filename in filenames:
             if '.root' in filename:
+                # note, filename will not have the full path,
+                # so 'filename not in skipFiles/selectFiles' won't always work
+                # it depends on how files are stored in skipFiles or selectFiles
+                # the following works both if they include the full path or only the basename
+                if len(skipFiles) and any(filename in str(x) for x in skipFiles): continue
+                if len(selectFiles) and all(filename not in str(x) for x in selectFiles): continue
                 listoffiles.append(xrdindir+os.path.join(root, filename))
 
     listoffilechunks = []
@@ -198,6 +224,15 @@ if args.condor:
     if dm == 'data':
         runperiod = runPeriod
     
+    # storing list of inputs, can be used to easily resubmit failed jobs based on missing output
+    # after checking which one were missing
+    listProcessedFiles_filename = "{cd}/inputFiles_{dm}{rp}.txt".format(cd=args.condorDir,dm=dm,rp=runperiod)
+    try:
+        with open(listProcessedFiles_filename, 'w') as f:
+            f.write("\n".join(str(x) for x in listoffiles))
+    except IOError as e:
+        print("Couldn't open or write to file %s (%s)." % (listProcessedFiles_filename,e))
+
     makeDummyFile()
     tmp_condor_filename = '{cd}/condor_submit_{dm}{rp}.condor'.format(cd=args.condorDir,dm=dm,rp=runperiod)
     job_desc = '''Executable = dummy_exec.sh
@@ -217,7 +252,7 @@ request_memory = 2000
     tmp_condor.write(job_desc)
     for il,fs in enumerate(listoffilechunks):
         if not len(fs): continue
-        tmp_condor.write('arguments = postproc.py  --isMC {isMC} --dataYear {y} --passall {pa} -iFile {files} -o {od}\n'.format(isMC=isMC,y=dataYear, pa=passall, files=','.join(fs),od=outDir))
+        tmp_condor.write('arguments = postproc.py  --isMC {isMC} --eraVFP {eraVFP} --dataYear {y} --passall {pa} -iFile {files} -o {od}\n'.format(isMC=isMC,eraVFP=eraVFP,y=dataYear, pa=passall, files=','.join(fs),od=outDir))
         tmp_condor.write('''
 Log        = {cd}/log_condor_{dm}{rp}_chunk{ch}.log
 Output     = {cd}/log_condor_{dm}{rp}_chunk{ch}.out
