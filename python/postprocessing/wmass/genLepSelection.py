@@ -73,8 +73,8 @@ class leptonSelection(Module):
             gVtype = pdg1     
         else:
             pdg1, pdg2 = prefsrleptons[0][1].pdgId, prefsrleptons[1][1].pdgId
-            gPartIdx1 = prefsrleptons[0][0] if abs(prefsrleptons[0][1].pdgId) < 0 else prefsrleptons[1][0]
-            gPartIdx2 = prefsrleptons[1][0] if abs(prefsrleptons[0][1].pdgId) < 0 else prefsrleptons[0][0]
+            gPartIdx1 = prefsrleptons[1][0] if pdg1 < 0 else prefsrleptons[0][0]
+            gPartIdx2 = prefsrleptons[0][0] if pdg1 < 0 else prefsrleptons[1][0]
             ## get sign of the odd-pdgid lepton and multiply by -1 to get the charge of the boson
             vcharge = -1*pdg1/abs(pdg1) if pdg1%2 else -1*pdg2/abs(pdg2)
 
@@ -84,6 +84,12 @@ class leptonSelection(Module):
             ## if pdg1 == -1*pdg2: ## for the Z define charge as 1
             ##     vcharge = 1
             gVtype = vcharge*int((abs(pdg1)+abs(pdg2))/2.)
+
+        isW = True
+        if abs(pdg1) == abs(pdg2):
+            isW = False
+
+        event.isW = isW
 
         ## some printouts for debugging
         ## print('======')
