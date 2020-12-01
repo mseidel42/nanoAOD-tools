@@ -1,11 +1,24 @@
 from PhysicsTools.NanoAODTools.postprocessing.framework.eventloop import Module
 from PhysicsTools.NanoAODTools.postprocessing.framework.datamodel import Collection
+from PhysicsTools.NanoAODTools.postprocessing.tools import deltaR
 import os
 import re
 import ROOT
 import math
 ROOT.PyConfig.IgnoreCommandLineOptions = True
 
+def selectMuons(mu):
+    fiducial = abs(mu.eta)<2.4 and mu.pt>10 and abs(mu.dxy)<0.05 and abs(mu.dz)<0.2
+    if not fiducial: return False
+    return mu.isPFcand and mu.pfRelIso04_all< 0.25 and mu.pt>15
+
+def cleanJetFromMuons(jet, muons, dR):
+    clean=(jet.jetId==7)
+    for mu in muons:
+        if deltaR(mu.eta, mu.phi, jet.eta, jet.phi) <= dR:
+            clean=False
+            break
+    return clean
 
 class PrefCorr(Module):
     def __init__(self,
@@ -83,8 +96,14 @@ class PrefCorr(Module):
     def analyze(self, event):
         """process event, return True (go to next module) or False (fail,
         go to next event)"""
+        
+        #get the muons
+        allMuons = Collection(event, "Muon")
+        selMuons = [mu for mu in allMuons if selectMuons(mu) ]
 
-        jets = Collection(event, "Jet")
+        allJets = Collection(event, "Jet")
+        #clean jets from muons before using 
+        jets=[jet for jet in allJets if cleanJetFromMuons(jet, selMuons, 0.4)]
 
         # Options
         self.JetMinPt = 20  # Min/Max Values may need to be fixed for new maps
@@ -108,12 +127,15 @@ class PrefCorr(Module):
                 if self.UseEMpT:
                     jetpt *= (jet.chEmEF + jet.neEmEF)
 
-                if jetpt >= self.JetMinPt and abs(
-                        jet.eta) <= self.JetMaxEta and abs(
-                            jet.eta) >= self.JetMinEta:
-                    jetpf *= 1 - \
-                        self.GetPrefireProbability(
-                            self.jet_map, jet.eta, jetpt, self.JetMaxPt)
+                # only consider jets there are not made out of the prompt muon
+                # because "Jet" collection is made of jets that are not cleaned
+                # this should be equivalent to a DR-based cleaning for muons
+                # might also want to require some minimal JetId to consider the jet, so to
+                # be consistent with how the maps where computed, but not really needed
+                if jet.muEF > 0.5: continue
+                
+                if jetpt >= self.JetMinPt and abs(jet.eta) <= self.JetMaxEta and abs(jet.eta) >= self.JetMinEta:
+                    jetpf *= 1 - self.GetPrefireProbability(self.jet_map, jet.eta, jetpt, self.JetMaxPt)
 
                 phopf = self.EGvalue(event, jid)
                 # The higher prefire-probablity between the jet and the
