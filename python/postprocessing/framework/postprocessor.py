@@ -159,6 +159,11 @@ class PostProcessor:
             else:
                 inFile = ROOT.TFile.Open(fname)
 
+            if not inFile:
+                print 'ERROR: file does not exist, check!'
+                print '    filename:', fname
+                exit(0)
+
             # get input tree
             inTree = inFile.Get("Events")
             if inTree is None:

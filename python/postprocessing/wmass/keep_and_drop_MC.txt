@@ -22,8 +22,6 @@ keep Idx_mu2
 keep Vtype*
 keep MET_filters
 keep nVetoElectrons
-keep IsTObjmatched_mu1
-keep IsTObjmatched_mu2
 keep GenPart_preFSRLepIdx1
 keep GenPart_preFSRLepIdx1
 keep genVtype

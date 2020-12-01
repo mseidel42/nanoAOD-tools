@@ -27,8 +27,8 @@ class leptonSelection(Module):
         status746leptons = []
         otherleptons = []
         prefsrleptons =[]
-        myIdx = -99
-        myNuIdx = -99
+        gPartIdx1=-99
+        gPartIdx2=-99
         
         for i,g in enumerate(genParticles) :
             if ( abs(g.pdgId) < 11 or abs(g.pdgId) > 16 or g.genPartIdxMother < 0): ## only look at leptons. genPartIdx sometimes -1 for low-pt electrons
@@ -45,6 +45,9 @@ class leptonSelection(Module):
             ## this code isn't used after all...
             #elif (g.status == 1 and ( (g.statusFlags  >> 8) & 1)): ## if those don't exist, take status 1 and the correct status flag
             #    otherleptons.append( (i,g) )
+
+        if len(otherleptons) > 2:
+            otherleptons = [i for i in otherleptons if ((i[1].statusFlags >> 8 ) & 1)]
             
         if   (len(status746leptons)) == 2:
             prefsrleptons=status746leptons
@@ -59,19 +62,28 @@ class leptonSelection(Module):
             print 'did not find exactly 2 proper leptons. check your code!'
             for (i,g) in status746leptons+otherleptons:
                 print g.pdgId, g.pt, g.eta, g.status, g.statusFlags, genParticles[g.genPartIdxMother].pdgId
-
+                
+        gVtype=0
         ## save signed 11, 13, or 15 for the Vtype
-        pdg1, pdg2 = prefsrleptons[0][1].pdgId, prefsrleptons[1][1].pdgId
+        if len(prefsrleptons) == 0:
+            pdg1, pdg2 = 0, 0
+        elif len(prefsrleptons) == 1:
+            pdg1, pdg2 = prefsrleptons[0][1].pdgId, 0
+            gPartIdx1 = prefsrleptons[0][0]
+            gVtype = pdg1     
+        else:
+            pdg1, pdg2 = prefsrleptons[0][1].pdgId, prefsrleptons[1][1].pdgId
+            gPartIdx1 = prefsrleptons[0][0] if abs(prefsrleptons[0][1].pdgId) < 0 else prefsrleptons[1][0]
+            gPartIdx2 = prefsrleptons[1][0] if abs(prefsrleptons[0][1].pdgId) < 0 else prefsrleptons[0][0]
+            ## get sign of the odd-pdgid lepton and multiply by -1 to get the charge of the boson
+            vcharge = -1*pdg1/abs(pdg1) if pdg1%2 else -1*pdg2/abs(pdg2)
 
-        ## get sign of the odd-pdgid lepton and multiply by -1 to get the charge of the boson
-        vcharge = -1*pdg1/abs(pdg1) if pdg1%2 else -1*pdg2/abs(pdg2)
-
-        ## for the Z this will save the charge of the highest pT lepton. which is fair enough
-        ## for splitting the dataset in two charges at random. if desired, uncomment the following
-        ## two lines to save the charge as positive...
-        ## if pdg1 == -1*pdg2: ## for the Z define charge as 1
-        ##     vcharge = 1
-        gVtype = vcharge*int((abs(pdg1)+abs(pdg2))/2.)
+            ## for the Z this will save the charge of the highest pT lepton. which is fair enough
+            ## for splitting the dataset in two charges at random. if desired, uncomment the following
+            ## two lines to save the charge as positive...
+            ## if pdg1 == -1*pdg2: ## for the Z define charge as 1
+            ##     vcharge = 1
+            gVtype = vcharge*int((abs(pdg1)+abs(pdg2))/2.)
 
         ## some printouts for debugging
         ## print('======')
@@ -79,9 +91,8 @@ class leptonSelection(Module):
         ##     print g.pdgId, g.pt, g.eta, g.status, g.statusFlags, genParticles[g.genPartIdxMother].pdgId
 
         self.out.fillBranch("genVtype", gVtype)
-
-        self.out.fillBranch("GenPart_preFSRLepIdx1", prefsrleptons[0][0] if abs(prefsrleptons[0][1].pdgId) < 0 else prefsrleptons[1][0])
-        self.out.fillBranch("GenPart_preFSRLepIdx2", prefsrleptons[1][0] if abs(prefsrleptons[0][1].pdgId) < 0 else prefsrleptons[0][0])
+        self.out.fillBranch("GenPart_preFSRLepIdx1", gPartIdx1)
+        self.out.fillBranch("GenPart_preFSRLepIdx2", gPartIdx2)
         
 
         return True

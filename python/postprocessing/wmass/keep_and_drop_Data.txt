@@ -9,8 +9,6 @@ drop TkMET*
 keep PV*
 keep HLT_SingleMu24
 keep HLT_SingleMu27
-keep IsTObjmatched_mu1
-keep IsTObjmatched_mu2
 keep nVetoElectrons
 keep Vtype*
 keep *_mu1
