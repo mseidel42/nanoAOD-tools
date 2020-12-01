@@ -252,7 +252,7 @@ request_memory = 2000
     tmp_condor.write(job_desc)
     for il,fs in enumerate(listoffilechunks):
         if not len(fs): continue
-        tmp_condor.write('arguments = postproc.py  --isMC {isMC} --dataYear {y} --passall {pa} -iFile {files} -o {od}\n'.format(isMC=isMC,y=dataYear, pa=passall, files=','.join(fs),od=outDir))
+        tmp_condor.write('arguments = postproc.py  --isMC {isMC} --eraVFP {eraVFP} --dataYear {y} --passall {pa} -iFile {files} -o {od}\n'.format(isMC=isMC,eraVFP=eraVFP,y=dataYear, pa=passall, files=','.join(fs),od=outDir))
         tmp_condor.write('''
 Log        = {cd}/log_condor_{dm}{rp}_chunk{ch}.log
 Output     = {cd}/log_condor_{dm}{rp}_chunk{ch}.out
