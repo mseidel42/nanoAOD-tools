@@ -52,6 +52,8 @@ class Vproducer(Module):
         else:
             Vpt_preFSR, Vrap_preFSR, Vphi_preFSR, Vmass_preFSR = -999., -999., -999., -999.
 
+        event.massV = Vmass_preFSR
+
         self.out.fillBranch("Vpt_preFSR",Vpt_preFSR)
         self.out.fillBranch("Vrap_preFSR",Vrap_preFSR)
         self.out.fillBranch("Vphi_preFSR",Vphi_preFSR)

@@ -6,30 +6,30 @@ from PhysicsTools.NanoAODTools.postprocessing.framework.datamodel import Collect
 from PhysicsTools.NanoAODTools.postprocessing.framework.eventloop import Module
 
 #global definition of CS angles
-def getCSangles(muon, neutrino):
+def getCSangles(lplus, lminus):
     	
-    	m = ROOT.TLorentzVector()
-    	n = ROOT.TLorentzVector()
-    	w = ROOT.TLorentzVector()
+    	plus  = ROOT.TLorentzVector()
+    	minus = ROOT.TLorentzVector()
+    	dilepton = ROOT.TLorentzVector()
     	
-    	m.SetPtEtaPhiM(muon.pt, muon.eta, muon.phi, muon.mass) #0.105)
-        n.SetPtEtaPhiM(neutrino.pt, neutrino.eta, neutrino.phi, neutrino.mass)#0.)
+    	plus .SetPtEtaPhiM(lplus.pt , lplus.eta , lplus.phi , lplus.mass )
+        minus.SetPtEtaPhiM(lminus.pt, lminus.eta, lminus.phi, lminus.mass)
   		
-        w = m + n
+        dilepton = plus + minus
 
-        sign  = abs(w.Z())/w.Z() if w.Z() else 0
+        sign  = abs(dilepton.Z())/dilepton.Z() if dilepton.Z() else 0
         
-        ProtonMass = 0.938
+        ProtonMass = 0.938272
         BeamEnergy = 6500.000
         
         p1 = ROOT.TLorentzVector()
         p2 = ROOT.TLorentzVector()
         
-        p1.SetPxPyPzE(0, 0, sign*BeamEnergy, math.sqrt(BeamEnergy*BeamEnergy+ProtonMass*ProtonMass)) 
+        p1.SetPxPyPzE(0, 0,    sign*BeamEnergy, math.sqrt(BeamEnergy*BeamEnergy+ProtonMass*ProtonMass)) 
         p2.SetPxPyPzE(0, 0, -1*sign*BeamEnergy, math.sqrt(BeamEnergy*BeamEnergy+ProtonMass*ProtonMass))
         
-        p1.Boost(-w.BoostVector())
-        p2.Boost(-w.BoostVector())
+        p1.Boost(-dilepton.BoostVector())
+        p2.Boost(-dilepton.BoostVector())
         
         CSAxis = (p1.Vect().Unit()-p2.Vect().Unit()).Unit() #quantise along axis that bisects the boosted beams
         
@@ -38,12 +38,16 @@ def getCSangles(muon, neutrino):
         xAxis = yAxis.Cross(CSAxis)
         xAxis = xAxis.Unit()
 
-        m.Boost(-w.BoostVector())
+        boostedLep = minus
+        boostedLep.Boost(-dilepton.BoostVector())
 
-        phi = math.atan2((m.Vect()*yAxis),(m.Vect()*xAxis))
+        #plus.Boost(-dilepton.BoostVector())
+
+        phi = math.atan2((boostedLep.Vect()*yAxis),(boostedLep.Vect()*xAxis))
+
         if phi<0: phi = phi + 2*math.pi
         
-        return math.cos(m.Angle(CSAxis)), phi
+        return math.cos(boostedLep.Angle(CSAxis)), phi
 
 
 class CSVariables(Module):

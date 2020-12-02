@@ -34,6 +34,14 @@ class lheWeightsFlattener(Module):
         self._ttreereaderversion = tree._ttreereaderversion
         pass
 
+    def bwWeight(self,genMass,offset, isW):
+        # default mass from the powheg config
+        (m0, gamma) = (80351.812293789408, 2090.4310808144846) if isW else (91153.509740726733, 2493.2018986110700)
+        newmass = m0 + offset
+        s_hat = pow(genMass,2)
+        weight = (pow(s_hat - m0*m0,2) + pow(gamma*m0,2)) / (pow(s_hat - newmass*newmass,2) + pow(gamma*newmass,2))
+        return weight
+
     def endFile(self, inputFile, outputFile, inputTree, wrappedOutputTree):
         pass
     def analyze(self, event):
@@ -51,8 +59,10 @@ class lheWeightsFlattener(Module):
 
         for i in range(1, self.maxMassShift/self.massGrid+1):
             val = i*self.massGrid
-            self.out.fillBranch("massShift%iMeVUp" % val, self.MEParamWeight[self.cenMassWgt+i])
-            self.out.fillBranch("massShift%iMeVDown" % val, self.MEParamWeight[self.cenMassWgt-i])
+            # not working (yet) self.out.fillBranch("massShift%iMeVUp" % val, self.MEParamWeight[self.cenMassWgt+i])
+            # not working (yet) self.out.fillBranch("massShift%iMeVDown" % val, self.MEParamWeight[self.cenMassWgt-i])
+            self.out.fillBranch("massShift%iMeVUp"   % val, self.bwWeight(event.massV*1000.,     val, event.isW))
+            self.out.fillBranch("massShift%iMeVDown" % val, self.bwWeight(event.massV*1000., -1.*val, event.isW))
 
         if len(self.LHEPdfWeight) < self.NumNNPDFWeights:
             raise RuntimeError("Found poorly formed LHE Scale weights")
