@@ -202,6 +202,9 @@ if args.condor:
     skipFiles = getLinesFromFile(args.condorSkipFiles) if args.condorSkipFiles else []
     selectFiles = getLinesFromFile(args.condorSelectFiles) if args.condorSelectFiles else []
 
+    skipFiles   = [i.strip().replace('_Skim','') for i in skipFiles]
+    selectFiles = [i.strip().replace('_Skim','') for i in selectFiles]
+
     ## get the list of files from the given
     listoffiles = []
     for root, dirnames, filenames in os.walk(args.dsdir):
