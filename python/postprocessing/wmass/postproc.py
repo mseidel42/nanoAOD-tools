@@ -11,13 +11,32 @@ from PhysicsTools.NanoAODTools.postprocessing.wmass.SequenceBuilder import Seque
 def makeDummyFile():
     f = open('dummy_exec.sh', 'w')
     f.write('''#!/bin/bash
-echo 'changing into proper directory'
+echo '===setting outdir'
+OUTDIR=$1
+echo '===changing into proper directory'
 cd {pwd}
-echo 'performing cmsenv'
+echo '===performing cmsenv'
 eval $(scramv1 runtime -sh);
-echo 'now running command'
-echo python $*
-python $*'''.format(pwd=os.environ['PWD']))
+echo '===moving back to the node'
+cd -
+echo '===copying keppdropfiles'
+cp {pwd}/keep_and_drop*.txt .
+shift
+echo '===now running command'
+echo python $@
+python $@
+echo '====doing ls in current dir'
+ls
+echo '===now compressing the files into subdir'
+mkdir compressed
+for i in `ls *.root`; 
+do
+    hadd -ff compressed/$i $i;
+done
+echo '===now copying the files to eos!'
+eos cp compressed/*.root $OUTDIR/
+echo '===done'
+'''.format(pwd=os.environ['PWD']))
     f.close()
 
 def getLinesFromFile(fname):
@@ -255,7 +274,7 @@ request_memory = 2000
     tmp_condor.write(job_desc)
     for il,fs in enumerate(listoffilechunks):
         if not len(fs): continue
-        tmp_condor.write('arguments = postproc.py  --isMC {isMC} --eraVFP {eraVFP} --dataYear {y} --passall {pa} -iFile {files} -o {od}\n'.format(isMC=isMC,eraVFP=eraVFP,y=dataYear, pa=passall, files=','.join(fs),od=outDir))
+        tmp_condor.write('arguments = {od} {pwd}/postproc.py  --isMC {isMC} --eraVFP {eraVFP} --dataYear {y} --passall {pa} -iFile {files} \n'.format(isMC=isMC,eraVFP=eraVFP,y=dataYear, pa=passall, files=','.join(fs),od=outDir,pwd=os.environ['PWD']))
         tmp_condor.write('''
 Log        = {cd}/log_condor_{dm}{rp}_chunk{ch}.log
 Output     = {cd}/log_condor_{dm}{rp}_chunk{ch}.out
