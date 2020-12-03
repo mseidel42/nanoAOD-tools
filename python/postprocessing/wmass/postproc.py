@@ -15,16 +15,18 @@ echo '===setting outdir'
 OUTDIR=$1
 echo '===changing into proper directory'
 cd {pwd}
-echo '===performing cmsenv'
+echo '===doing cmsenv'
 eval $(scramv1 runtime -sh);
 echo '===moving back to the node'
 cd -
 echo '===copying keppdropfiles'
 cp {pwd}/keep_and_drop*.txt .
 shift
+echo '===this is pwd at the moment'
+pwd
 echo '===now running command'
-echo python $@
-python $@
+echo python $@ -o $PWD
+python $@ -o $PWD
 echo '====doing ls in current dir'
 ls
 echo '===now compressing the files into subdir'
@@ -35,6 +37,12 @@ do
 done
 echo '===now copying the files to eos!'
 eos cp compressed/*.root $OUTDIR/
+echo '===cleaning up'
+rm *.root
+rm compressed/*.*
+rmdir compressed
+rm keep_and_drop*.txt
+echo '===done cleaning'
 echo '===done'
 '''.format(pwd=os.environ['PWD']))
     f.close()
