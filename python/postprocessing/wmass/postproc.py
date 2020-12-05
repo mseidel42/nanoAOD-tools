@@ -268,11 +268,12 @@ if args.condor:
 use_x509userproxy = true
 getenv      = True
 environment = "LS_SUBCWD={here}"
+transfer_output_files = ""
 request_memory = 2000
 transfer_output_files = ""
 +MaxRuntime = {t}\n'''.format(here=os.environ['PWD'],t=args.runtime)
     # some customization
-    if os.environ['USER'] in ['mdunser', 'psilva']:
+    if os.environ['USER'] in ['mdunser', 'kelong', 'bendavid']:
         job_desc += '+AccountingGroup = "group_u_CMST3.all"\n'
     if os.environ['USER'] in ['mciprian']:
         job_desc += '+AccountingGroup = "group_u_CMS.CAF.ALCA"\n' 
@@ -290,6 +291,8 @@ Output     = {cd}/log_condor_{dm}{rp}_chunk{ch}.out
 Error      = {cd}/log_condor_{dm}{rp}_chunk{ch}.error\n'''.format(cd=args.condorDir,ch=il,dm=dm,rp=runperiod))
         tmp_condor.write('queue 1\n\n')
     tmp_condor.close()
+
+    print 'condor submission file made:', tmp_condor_filename
 
 else:
     p = PostProcessor(outputDir=outDir,  
