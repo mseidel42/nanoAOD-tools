@@ -3,6 +3,7 @@ import os, sys
 import ROOT
 import argparse
 import subprocess
+import random
 ROOT.PyConfig.IgnoreCommandLineOptions = True
 from importlib import import_module
 from PhysicsTools.NanoAODTools.postprocessing.framework.postprocessor import PostProcessor
@@ -37,12 +38,6 @@ do
 done
 echo '===now copying the files to eos!'
 eos cp compressed/*.root $OUTDIR/
-echo '===cleaning up'
-rm *.root
-rm compressed/*.*
-rmdir compressed
-rm keep_and_drop*.txt
-echo '===done cleaning'
 echo '===done'
 '''.format(pwd=os.environ['PWD']))
     f.close()
@@ -86,6 +81,7 @@ parser.add_argument('-eraVFP',    '--eraVFP',   type=str, default="",     help="
 parser.add_argument('-condor'   , '--condor',  action='store_true',     help="run on condor instead of locally or on crab")
 parser.add_argument('-d'         , '--dsdir'    , type=str , default="", help="input directory of dataset, to be given with condor option!")
 parser.add_argument('-n'         , '--nfiles'   , type=int , default=5 , help="number of files to run per condor job")
+parser.add_argument('-t'         , '--runtime'  , type=int , default=43200 , help="MaxRunTime for condor jobs, in seconds")
 parser.add_argument('-condorDir' , '--condorDir', type=str , default="", help="Mandatory to run with condor, specify output folder to save condor files, logs, etc...")
 parser.add_argument('-condorSkipFiles' , '--condorSkipFiles', type=str , default="", help="When using condor, can specify a file containing a list of files to be skipped (useful for resubmitting failed jobs)")
 parser.add_argument('-condorSelectFiles' , '--condorSelectFiles', type=str , default="", help="As --condorSkipFiles, but keep only these ones (useful for resubmitting failed jobs)")
@@ -245,6 +241,9 @@ if args.condor:
                 if len(selectFiles) and all(filename not in str(x) for x in selectFiles): continue
                 listoffiles.append(xrdindir+os.path.join(root, filename))
 
+    # shuffle input list, because some input files are much larger than others, and it this way we ensure that the run time is more uniform among different jobs
+    random.shuffle(listoffiles) # this modifies the array
+
     listoffilechunks = []
     for ff in range(len(listoffiles)/args.nfiles+1):
         listoffilechunks.append(listoffiles[ff*args.nfiles:args.nfiles*(ff+1)])
@@ -270,14 +269,16 @@ use_x509userproxy = true
 getenv      = True
 environment = "LS_SUBCWD={here}"
 request_memory = 2000
-+MaxRuntime = 20000 \n\n'''.format(here=os.environ['PWD'])
-
+transfer_output_files = ""
++MaxRuntime = {t}\n'''.format(here=os.environ['PWD'],t=args.runtime)
     # some customization
     if os.environ['USER'] in ['mdunser', 'psilva']:
         job_desc += '+AccountingGroup = "group_u_CMST3.all"\n'
     if os.environ['USER'] in ['mciprian']:
         job_desc += '+AccountingGroup = "group_u_CMS.CAF.ALCA"\n' 
     ##
+    job_desc += '\n'
+
     tmp_condor = open(tmp_condor_filename,'w')
     tmp_condor.write(job_desc)
     for il,fs in enumerate(listoffilechunks):
