@@ -3,7 +3,6 @@ keep event*
 keep run*
 keep luminosityBlock*
 keep Muon*
-keep event*
 keep MET*
 drop TkMET*
 keep PV*
@@ -17,3 +16,11 @@ keep nPair*
 keep Idx_tag*
 keep Idx_probe*
 keep Is_pass*
+keep Jet_eta
+keep Jet_pt
+keep Jet_phi
+keep Jet_mass
+keep Jet_muEF
+keep Jet_puId
+keep Jet_jetId
+keep Jet_MuonClean*

@@ -13,7 +13,6 @@ keep Muon*
 keep MET*
 keep *nom*
 keep GenMET*
-keep puWeight*
 keep PrefireWeight*
 keep HLT_SingleMu24
 keep HLT_SingleMu27
@@ -29,3 +28,12 @@ keep *preFSR
 keep scale*
 keep pdf*
 keep mass*
+keep GenVtx_z
+keep Jet_eta
+keep Jet_pt
+keep Jet_phi
+keep Jet_mass
+keep Jet_muEF
+keep Jet_puId
+keep Jet_jetId
+keep Jet_MuonClean*
