@@ -16,6 +16,7 @@ keep nPair*
 keep Idx_tag*
 keep Idx_probe*
 keep Is_pass*
+keep nJet
 keep Jet_eta
 keep Jet_pt
 keep Jet_phi
@@ -23,4 +24,5 @@ keep Jet_mass
 keep Jet_muEF
 keep Jet_puId
 keep Jet_jetId
+keep nJet_MuonClean
 keep Jet_MuonClean*

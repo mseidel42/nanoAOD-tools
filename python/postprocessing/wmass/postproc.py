@@ -203,7 +203,7 @@ else:
     else : 
         input_files.extend( inputFile.split(',') )
 
-bob=SequenceBuilder(isMC, dataYear, runPeriod, jesUncert, eraVFP, passall, genOnly, isTest)
+bob=SequenceBuilder(isMC, dataYear, runPeriod, jesUncert, eraVFP, passall, genOnly, addOptional=True)
 modules=bob.buildFinalSequence()
 
 treecut = ("Entry$<" + str(maxEvents) if maxEvents > 0 else None)
