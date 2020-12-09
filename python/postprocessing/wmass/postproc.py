@@ -79,7 +79,7 @@ parser.add_argument('-runPeriod', '--runPeriod',type=str, default="",    help=""
 parser.add_argument('-genOnly',   '--genOnly',  type=int, default=0,      help="")
 parser.add_argument('-trigOnly',  '--trigOnly', type=int, default=0,      help="")
 parser.add_argument('-iFile',     '--iFile',    type=str, default="",     help="")
-parser.add_argument(              '--isTest',   action='store_true',      help="run test modules, hardcoded inside")
+parser.add_argument(              '--isTest',   action='store_true',      help="run test modules, hardcoded inside SequenceBuilder.py (will use keep_and_drop_TEST.txt)")
 parser.add_argument('--customKeepDrop',         type=str, default="",     help="use this file for keep-drop")
 parser.add_argument('-o',         '--outDir',   type=str, default=".",    help="output directory")
 parser.add_argument('-eraVFP',    '--eraVFP',   type=str, default="",     help="Specify one key in ['preVFP','postVFP'] to run on UL2016 MC samples. Only works with --isMC and --dataYear 2016")
@@ -203,7 +203,7 @@ else:
     else : 
         input_files.extend( inputFile.split(',') )
 
-bob=SequenceBuilder(isMC, dataYear, runPeriod, jesUncert, eraVFP, passall, genOnly, addOptional=True)
+bob=SequenceBuilder(isMC, dataYear, runPeriod, jesUncert, eraVFP, passall, genOnly, addOptional=True, onlyTestModules=isTest)
 modules=bob.buildFinalSequence()
 
 treecut = ("Entry$<" + str(maxEvents) if maxEvents > 0 else None)

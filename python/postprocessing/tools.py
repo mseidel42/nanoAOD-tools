@@ -76,3 +76,29 @@ def matchObjectCollectionMultiple(
                 matched.append(c)
         pairs[obj] = matched
     return pairs
+
+def stringToLeafType(string, unknownType = "Float_t", setUnknownToDefault = False):
+    types = {"Float_t"  : "F",
+             "Double_t" : "D",
+             "UInt_t"   : "i",
+             "Int_t"    : "I",
+             "Char_t"   : "B",
+             "UChar_t"  : "b",
+             "Bool_t"   : "O",
+             "ULong64_t": "l",
+             "Long64_t" : "L",
+             "UShort_t" : "s",
+             "Short_t"  : "S"
+             }
+    if string in types:
+        return types[string]
+    else:
+        if setUnknownToDefault:
+            print "Warning in stringToLeafType(): setting unknown input string %s to %s" % (string,unknownType)
+            return types[unknownType]
+        else:
+            print "Error in stringToLeafType(): unknown input string %s. Abort" % string
+            quit()
+    return "F" # just in case, but will bever get here
+
+

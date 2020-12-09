@@ -5,18 +5,19 @@ ROOT.PyConfig.IgnoreCommandLineOptions = True
 
 from PhysicsTools.NanoAODTools.postprocessing.framework.datamodel import Collection
 from PhysicsTools.NanoAODTools.postprocessing.framework.eventloop import Module
+from PhysicsTools.NanoAODTools.postprocessing.tools import stringToLeafType
 
 class JetReCleaner(Module):
-    def __init__(self,label,jetCollection="Jet", particleCollection="Muon", deltaRforCleaning=0.4):
+    def __init__(self,label,jetCollection="Jet", particleCollection="Muon", deltaRforCleaning=0.4, variables=None):
         self.label = "_"+particleCollection+label
         self.jetCollection = jetCollection
         self.particleCollection = particleCollection
         self.deltaRforCleaning = deltaRforCleaning
         # will create new collection whose only variable is the id of the corresponding jet, so one can easily use the original collection but only
         # referencing cleaned jets (so all the original variables are available)
-        # if convenient, new variables can be created (e.g. pt, eta, etc) in self.vars, for instance  as self.vars = ("pt", "eta")
+        # if convenient, new variables can be created (e.g. pt, eta, etc) in self.vars, for instance  as self.vars = ["pt", "eta"]
         self.jetidvar = "jetIdx"
-        self.vars = ()
+        self.vars = [] if variables == None else [str(x) for x in variables]
         #
         if "jetReCleanerHelper.cc_cc.so" not in ROOT.gSystem.GetLibraries():
             print "Load C++ Worker"
@@ -32,7 +33,10 @@ class JetReCleaner(Module):
         self.out.branch("n"+self.jetCollection+self.label, "i") # I is Int_t, i is UInt_t
         self.out.branch(self.jetCollection+self.label+"_"+self.jetidvar, "I", lenVar="n"+self.jetCollection+self.label)
         for V in self.vars:
-            self.out.branch(self.jetCollection+self.label+"_"+V, "F", lenVar="n"+self.jetCollection+self.label)
+            # get leaf type to keep the same with the new branch
+            leafType = inputTree.GetLeaf(self.jetCollection+"_"+V).GetTypeName()
+            ltype = stringToLeafType(leafType, setUnknownToDefault=False)
+            self.out.branch(self.jetCollection+self.label+"_"+V, ltype, lenVar="n"+self.jetCollection+self.label)
     def endFile(self, inputFile, outputFile, inputTree, wrappedOutputTree):
         pass
 
@@ -77,3 +81,4 @@ class JetReCleaner(Module):
 # one has to choose a collection of objects to clean the jets from (e.g. Muon to consider only jets not matched to muons)
 # can be further developed to clean with respect to more collections, but for now it is not attempted
 jetReCleaner = lambda : JetReCleaner(label="Clean", jetCollection="Jet", particleCollection="Muon", deltaRforCleaning=0.4)
+#jetReCleaner_testVar = lambda : JetReCleaner(label="Clean", jetCollection="Jet", particleCollection="Muon", deltaRforCleaning=0.4, variables=["pt","eta","phi"])

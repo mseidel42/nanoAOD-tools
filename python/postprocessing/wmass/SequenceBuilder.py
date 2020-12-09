@@ -18,7 +18,7 @@ from PhysicsTools.NanoAODTools.postprocessing.wmass.triggerMatchProducer import 
 from PhysicsTools.NanoAODTools.postprocessing.wmass.jetReCleaner import *
 
 class SequenceBuilder:
-    def __init__(self, isMC, dataYear, runPeriod, jesUncert, eraVFP, passall, genOnly, addOptional):
+    def __init__(self, isMC, dataYear, runPeriod, jesUncert, eraVFP, passall, genOnly, addOptional, onlyTestModules=False):
         self.isMC=isMC
         self.dataYear=dataYear
         self.runPeriod=runPeriod
@@ -27,6 +27,7 @@ class SequenceBuilder:
         self.genOnly = genOnly
         self.eraVFP = eraVFP
         self.addOptional = addOptional
+        self.onlyTestModules = onlyTestModules
         self.modules=[]
             
     #this sequence will always be run
@@ -99,7 +100,19 @@ class SequenceBuilder:
 
         return optionals
 
+    #list of test modules (only these will run if requested)
+    def testSequence(self):
+        optionals=[JetReCleaner(label="Clean", jetCollection="Jet", particleCollection="Muon", deltaRforCleaning=0.4, variables=["pt","eta","phi"])]
+
+        return optionals
+
+
     def buildFinalSequence(self):
+        
+        if self.onlyTestModules:
+            self.modules.extend(self.testSequence())
+            return self.modules
+
         if (not self.genOnly):
             self.modules.extend(self.makeBaselineSequence())
             
