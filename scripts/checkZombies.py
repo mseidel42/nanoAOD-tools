@@ -13,7 +13,7 @@ nTot = len(allfiles)
 
 for i,f in enumerate(allfiles):
     
-    rf = ROOT.TFile(os.path.join(d,f),'read')
+    rf = ROOT.TFile.Open(os.path.join(d,f),'read')
     if rf.IsZombie() or rf.TestBit(ROOT.TFile.kRecovered) or rf.GetListOfKeys().GetSize()==0:
         faultyfiles.append(d+f)
     if rf.IsOpen():
