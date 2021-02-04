@@ -20,7 +20,7 @@ class PostProcessor:
             noOut=False, justcount=False, provenance=False, haddFileName=None,
             fwkJobReport=False, histFileName=None, histDirName=None,
             outputbranchsel=None, maxEntries=None, firstEntry=0, prefetch=False,
-            longTermCache=False
+            longTermCache=False, saveHistoGenWeights=False
     ):
         self.outputDir = outputDir
         self.inputFiles = inputFiles
@@ -35,6 +35,7 @@ class PostProcessor:
         self.provenance = provenance
         self.jobReport = JobReport() if fwkJobReport else None
         self.haddFileName = haddFileName
+        self.saveHistoGenWeights = saveHistoGenWeights
         self.histFile = None
         self.histDirName = None
         if self.jobReport and not self.haddFileName:
@@ -170,6 +171,13 @@ class PostProcessor:
                 inTree = inFile.Get("Friends")
             nEntries = min(inTree.GetEntries() -
                            self.firstEntry, self.maxEntries)
+            if self.saveHistoGenWeights and inTree.GetName() == "Events":
+                # saving distribution of genWeight for offline usage
+                # idea is to fill the distribution of Log10(genWeight) with the sign, so to have a histogram from about -10 to 10
+                # with about 10k bins (genWeights can take valus spanning several orders of magnitude, especially for fancy weights)
+                # then one can compute the sum of genWeight in a given range using its integral (using Log10(threshold) )
+                hGenWeights = ROOT.TH1D("hGenWeights","distribution of Log10(genWeight)",4800,-12.0,12.0)                
+                drawResult = inTree.Draw("TMath::Sign(1.0,genWeight)*TMath::Log10(abs(genWeight))>>hGenWeights","genWeight","goff",nEntries,self.firstEntry)               
             totEntriesRead += nEntries
             # pre-skimming
             elist, jsonFilter = preSkim(
@@ -246,6 +254,8 @@ class PostProcessor:
             # now write the output
             if not self.noOut:
                 outTree.write()
+                if self.saveHistoGenWeights:
+                    hGenWeights.Write(hGenWeights.GetName())
                 outFile.Close()
                 print("Done %s" % outFileName)
             if self.jobReport:

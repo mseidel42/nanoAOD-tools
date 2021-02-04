@@ -206,7 +206,9 @@ else:
 bob=SequenceBuilder(isMC, dataYear, runPeriod, jesUncert, eraVFP, passall, genOnly, addOptional=True, onlyTestModules=isTest)
 modules=bob.buildFinalSequence()
 
-treecut = ("Entry$<" + str(maxEvents) if maxEvents > 0 else None)
+# better to use the maxEntries argument of PostProcessor (so that one can use it inside that class)
+#treecut = ("Entry$<" + str(maxEvents) if maxEvents > 0 else None)
+treecut = None
 kd_file = "keep_and_drop"
 if isMC:
     kd_file += "_MC"
@@ -310,14 +312,16 @@ Error      = {cd}/log_condor_{dm}{rp}_chunk{ch}.error\n'''.format(cd=args.condor
 
 else:
     p = PostProcessor(outputDir=outDir,  
-                  inputFiles=(input_files if crab==0 else inputFiles()),
-                  cut=treecut,      
-                  modules=modules,
-                  provenance=True,
-                  outputbranchsel=kd_file,
-                  fwkJobReport=(False if crab==0 else True),
-                  jsonInput=(None if crab==0 else runsAndLumis()),
-                  compression="LZMA:9"
+                      inputFiles=(input_files if crab==0 else inputFiles()),
+                      cut=treecut,      
+                      modules=modules,
+                      provenance=True,
+                      outputbranchsel=kd_file,
+                      maxEntries=maxEvents if maxEvents>0 else None,
+                      fwkJobReport=(False if crab==0 else True),
+                      jsonInput=(None if crab==0 else runsAndLumis()),
+                      compression="LZMA:9",
+                      saveHistoGenWeights=(True if isMC else False)
                   )
     p.run()
 
