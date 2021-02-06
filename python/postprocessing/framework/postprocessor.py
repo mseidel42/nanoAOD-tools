@@ -20,7 +20,7 @@ class PostProcessor:
             noOut=False, justcount=False, provenance=False, haddFileName=None,
             fwkJobReport=False, histFileName=None, histDirName=None,
             outputbranchsel=None, maxEntries=None, firstEntry=0, prefetch=False,
-            longTermCache=False, saveHistoGenWeights=False
+            longTermCache=False, saveHistoGenWeights=False, allowNoPostfix=False
     ):
         self.outputDir = outputDir
         self.inputFiles = inputFiles
@@ -28,6 +28,7 @@ class PostProcessor:
         self.modules = modules
         self.compression = compression
         self.postfix = postfix
+        self.allowNoPostfix = allowNoPostfix
         self.json = jsonInput
         self.noOut = noOut
         self.friend = friend
@@ -99,6 +100,8 @@ class PostProcessor:
     def run(self):
         outpostfix = self.postfix if self.postfix is not None else (
             "_Friend" if self.friend else "_Skim")
+        if self.allowNoPostfix and self.postfix is None:
+            outpostfix = ""
         if not self.noOut:
 
             if self.compression != "none":
@@ -171,13 +174,33 @@ class PostProcessor:
                 inTree = inFile.Get("Friends")
             nEntries = min(inTree.GetEntries() -
                            self.firstEntry, self.maxEntries)
-            if self.saveHistoGenWeights and inTree.GetName() == "Events":
+            # first check that the histogram with weights is not already in the file
+            hasWeightHistograms = False
+            if inFile.GetListOfKeys().Contains("hGenWeights") and inFile.GetListOfKeys().Contains("hNumWeights"):
+                hasWeightHistograms = True
+                print "Histogram hGenWeights already exists, I will just copy it without recreating it"
+            if self.saveHistoGenWeights and inTree.GetName() == "Events" and not hasWeightHistograms:
+                print "Histogram hGenWeights does not exist yet, I will create it"
+                # check that the tree contains all the original events, otherwise the sum of gen weights will miss some
+                tmpTreeRuns = inFile.Get("Runs")
+                for ievt,event in enumerate(tmpTreeRuns):
+                    if ievt: break # only need first event (but there should be only 1 here)
+                    nGenEvents = event.genEventCount
+                if nGenEvents != inTree.GetEntries():
+                    raise RuntimeError(
+                        "I am creating the histogram with genWeight, but tree Events has less entries than genEventCount in tree Runs (%s instead of %s). The sum of weights will thus be wrong, please check" % (str(inTree.GetEntries()),str(nGenEvents)))
+
                 # saving distribution of genWeight for offline usage
                 # idea is to fill the distribution of Log10(genWeight) with the sign, so to have a histogram from about -10 to 10
                 # with about 10k bins (genWeights can take valus spanning several orders of magnitude, especially for fancy weights)
-                # then one can compute the sum of genWeight in a given range using its integral (using Log10(threshold) )
+                # then one can compute the sum of genWeight in a given range using its integral (using Log10(threshold) ).
+                # This somehow relies on having always |genWeight|>1, should it be < 1 the Log would change the sign.
+                # So for the purpose of choosing the bin to be filled, we use |value| or 1.001, whatever is larger (this will not affect the integral)
+                # then, need a second histogram to keep the integer number of events in each bin, so to allow for clipping of large weights
                 hGenWeights = ROOT.TH1D("hGenWeights","distribution of Log10(genWeight)",4800,-12.0,12.0)                
-                drawResult = inTree.Draw("TMath::Sign(1.0,genWeight)*TMath::Log10(abs(genWeight))>>hGenWeights","genWeight","goff",nEntries,self.firstEntry)               
+                hNumWeights = ROOT.TH1D("hNumWeights","distribution of Log10(genWeight) (unweighted)",4800,-12.0,12.0)                
+                drawResult = inTree.Draw("TMath::Sign(1.0,genWeight)*TMath::Log10(max(1.001,abs(genWeight)))>>hGenWeights","genWeight","goff",nEntries,self.firstEntry)               
+                drawResult = inTree.Draw("TMath::Sign(1.0,genWeight)*TMath::Log10(max(1.001,abs(genWeight)))>>hNumWeights","1","goff",nEntries,self.firstEntry)               
             totEntriesRead += nEntries
             # pre-skimming
             elist, jsonFilter = preSkim(
@@ -254,8 +277,10 @@ class PostProcessor:
             # now write the output
             if not self.noOut:
                 outTree.write()
-                if self.saveHistoGenWeights:
-                    hGenWeights.Write(hGenWeights.GetName())
+                if not hasWeightHistograms:
+                    if self.saveHistoGenWeights:
+                        hGenWeights.Write(hGenWeights.GetName())
+                        hNumWeights.Write(hNumWeights.GetName())
                 outFile.Close()
                 print("Done %s" % outFileName)
             if self.jobReport:

@@ -14,6 +14,9 @@ from PhysicsTools.NanoAODTools.postprocessing.wmass.SequenceBuilder import Seque
 # condor options
 # -condor --condorDir postprocDY_postVFP -t 86400 -j ZmumuPostVFP -n 2
 
+# for skims (check skimmer.py)
+# --doSkim 2 --runOnlySkim --noPostfixSkim (check meaning of these options below)
+
 def makeDummyFile():
     f = open('dummy_exec.sh', 'w')
     f.write('''#!/bin/bash
@@ -79,6 +82,9 @@ parser.add_argument('-runPeriod', '--runPeriod',type=str, default="",    help=""
 parser.add_argument('-genOnly',   '--genOnly',  type=int, default=0,      help="")
 parser.add_argument('-trigOnly',  '--trigOnly', type=int, default=0,      help="")
 parser.add_argument('-iFile',     '--iFile',    type=str, default="",     help="")
+parser.add_argument('-doSkim',    '--doSkim',   type=int, choices=[0, 1, 2], default=0,      help="If > 0, run modules for skimming (1=skim for 1 lep space, 2=skim for 2 lep space")
+parser.add_argument('-runOnlySkim',    '--runOnlySkim', action='store_true', help="If using doSkim>0, only the skimming module will be run (useful on postprocessed NanoAOD)")
+parser.add_argument('-noPostfixSkim',    '--noPostfixSkim', action='store_true', help="If using doSkim>0 from postprocessed NanoAOD, do not add '_Skim' as postfix to the output name (it is already present)")
 parser.add_argument(              '--isTest',   action='store_true',      help="run test modules, hardcoded inside SequenceBuilder.py (will use keep_and_drop_TEST.txt)")
 parser.add_argument('--customKeepDrop',         type=str, default="",     help="use this file for keep-drop")
 parser.add_argument('-o',         '--outDir',   type=str, default=".",    help="output directory")
@@ -111,6 +117,10 @@ outDir = args.outDir
 eraVFP = args.eraVFP
 
 isData = not isMC
+
+if args.runOnlySkim and not args.doSkim:
+    print "--runOnlySkim requires --doSkim {1,2}"
+    exit(1)
 
 if outDir not in [".", "./"]:
     print "Creating output directory"
@@ -203,7 +213,11 @@ else:
     else : 
         input_files.extend( inputFile.split(',') )
 
-bob=SequenceBuilder(isMC, dataYear, runPeriod, jesUncert, eraVFP, passall, genOnly, addOptional=True, onlyTestModules=isTest)
+bob=SequenceBuilder(isMC, dataYear, runPeriod, jesUncert, eraVFP, passall, genOnly, 
+                    addOptional=True, 
+                    onlyTestModules=isTest, 
+                    doSkim=args.doSkim, 
+                    runOnlySkim=args.runOnlySkim)
 modules=bob.buildFinalSequence()
 
 # better to use the maxEntries argument of PostProcessor (so that one can use it inside that class)
@@ -300,7 +314,20 @@ transfer_output_files = ""
     tmp_condor.write(job_desc)
     for il,fs in enumerate(listoffilechunks):
         if not len(fs): continue
-        tmp_condor.write('arguments = {od} {pwd}/postproc.py  --isMC {isMC} --eraVFP {eraVFP} --dataYear {y} --passall {pa} -iFile {files} \n'.format(isMC=isMC,eraVFP=eraVFP,y=dataYear, pa=passall, files=','.join(fs),od=outDir,pwd=os.environ['PWD']))
+        flags = ""
+        if isMC:
+            flags += "--eraVFP {e}".format(e=eraVFP)
+        else:
+            if runPeriod:
+                flags += " --runPeriod {rp}".format(rp=runPeriod)
+        if args.doSkim:
+            flags += " --doSkim {sk}".format(sk=args.doSkim)
+        if args.runOnlySkim:
+            flags += " --runOnlySkim"
+        if args.noPostfixSkim:
+            flags += " --noPostfixSkim"
+            
+        tmp_condor.write('arguments = {od} {pwd}/postproc.py  --isMC {isMC} --dataYear {y} --passall {pa} {flags} -iFile {files}\n'.format(isMC=isMC,y=dataYear, pa=passall, flags=flags, files=','.join(fs),od=outDir,pwd=os.environ['PWD']))
         tmp_condor.write('''
 Log        = {cd}/log_condor_{dm}{rp}_chunk{ch}.log
 Output     = {cd}/log_condor_{dm}{rp}_chunk{ch}.out
@@ -321,7 +348,8 @@ else:
                       fwkJobReport=(False if crab==0 else True),
                       jsonInput=(None if crab==0 else runsAndLumis()),
                       compression="LZMA:9",
-                      saveHistoGenWeights=(True if isMC else False)
+                      saveHistoGenWeights=(True if isMC else False),
+                      allowNoPostfix=args.noPostfixSkim
                   )
     p.run()
 

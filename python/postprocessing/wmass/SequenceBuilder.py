@@ -16,9 +16,10 @@ from PhysicsTools.NanoAODTools.postprocessing.wmass.genLepSelection import *
 from PhysicsTools.NanoAODTools.postprocessing.wmass.lheWeightsFlattener import *
 from PhysicsTools.NanoAODTools.postprocessing.wmass.triggerMatchProducer import *
 from PhysicsTools.NanoAODTools.postprocessing.wmass.jetReCleaner import *
+from PhysicsTools.NanoAODTools.postprocessing.wmass.skimmer import *
 
 class SequenceBuilder:
-    def __init__(self, isMC, dataYear, runPeriod, jesUncert, eraVFP, passall, genOnly, addOptional, onlyTestModules=False):
+    def __init__(self, isMC, dataYear, runPeriod, jesUncert, eraVFP, passall, genOnly, addOptional, onlyTestModules=False, doSkim=0, runOnlySkim=False):
         self.isMC=isMC
         self.dataYear=dataYear
         self.runPeriod=runPeriod
@@ -26,6 +27,8 @@ class SequenceBuilder:
         self.passall=passall
         self.genOnly = genOnly
         self.eraVFP = eraVFP
+        self.doSkim=doSkim
+        self.runOnlySkim=runOnlySkim
         self.addOptional = addOptional
         self.onlyTestModules = onlyTestModules
         self.modules=[]
@@ -95,6 +98,14 @@ class SequenceBuilder:
         return genmodules
 
     #list of optional or test modules
+    def skimSequence(self):
+        ret = []
+        if self.doSkim == 1:
+            ret = [skimmerWmassModule()]
+        elif self.doSkim == 2:
+            ret = [skimmerWlikeModule()]
+        return ret
+
     def appendOptionalSequence(self):
         optionals=[JetReCleaner(label="Clean", jetCollection="Jet", particleCollection="Muon", deltaRforCleaning=0.4)]
 
@@ -113,6 +124,10 @@ class SequenceBuilder:
             self.modules.extend(self.testSequence())
             return self.modules
 
+        if self.runOnlySkim and self.doSkim:
+            self.modules.extend(self.skimSequence())
+            return self.modules
+
         if (not self.genOnly):
             self.modules.extend(self.makeBaselineSequence())
             
@@ -125,5 +140,9 @@ class SequenceBuilder:
             
         elif self.genOnly: 
           self.modules.extend(self.appendGenSequence())
+
+        # this should run at the end, to have access to all new variables when running on original NanoAOD
+        if self.doSkim:
+            self.modules.extend(self.skimSequence())
 
         return self.modules
