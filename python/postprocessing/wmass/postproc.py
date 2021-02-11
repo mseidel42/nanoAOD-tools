@@ -3,10 +3,19 @@ import os, sys
 import ROOT
 import argparse
 import subprocess
+import random
 ROOT.PyConfig.IgnoreCommandLineOptions = True
 from importlib import import_module
 from PhysicsTools.NanoAODTools.postprocessing.framework.postprocessor import PostProcessor
 from PhysicsTools.NanoAODTools.postprocessing.wmass.SequenceBuilder import SequenceBuilder
+
+# example
+# python postproc.py -o /eos/cms/store/cmst3/group/wmass/w-mass-13TeV/postNANO/dec2020/DYJetsToMuMu_postVFP/ -d /eos/cms/store/cmst3/group/wmass/sroychow/nanov8/DYJetsToMuMu_M-50_TuneCP5_13TeV-powhegMiNNLO-pythia8-photos/RunIISummer20UL16MiniAOD-106X_mcRun2_asymptotic_v13-v2/  --passall 1 --eraVFP postVFP --isMC 1
+# condor options
+# -condor --condorDir postprocDY_postVFP -t 86400 -j ZmumuPostVFP -n 2
+
+# for skims (check skimmer.py)
+# --doSkim 2 --runOnlySkim --noPostfixSkim (check meaning of these options below)
 
 def makeDummyFile():
     f = open('dummy_exec.sh', 'w')
@@ -73,13 +82,18 @@ parser.add_argument('-runPeriod', '--runPeriod',type=str, default="",    help=""
 parser.add_argument('-genOnly',   '--genOnly',  type=int, default=0,      help="")
 parser.add_argument('-trigOnly',  '--trigOnly', type=int, default=0,      help="")
 parser.add_argument('-iFile',     '--iFile',    type=str, default="",     help="")
-parser.add_argument(              '--isTest',   action='store_true',      help="run test modules, hardcoded inside")
+parser.add_argument('-doSkim',    '--doSkim',   type=int, choices=[0, 1, 2], default=0,      help="If > 0, run modules for skimming (1=skim for 1 lep space, 2=skim for 2 lep space")
+parser.add_argument('-runOnlySkim',    '--runOnlySkim', action='store_true', help="If using doSkim>0, only the skimming module will be run (useful on postprocessed NanoAOD)")
+parser.add_argument('-noPostfixSkim',    '--noPostfixSkim', action='store_true', help="If using doSkim>0 from postprocessed NanoAOD, do not add '_Skim' as postfix to the output name (it is already present)")
+parser.add_argument(              '--isTest',   action='store_true',      help="run test modules, hardcoded inside SequenceBuilder.py (will use keep_and_drop_TEST.txt)")
 parser.add_argument('--customKeepDrop',         type=str, default="",     help="use this file for keep-drop")
 parser.add_argument('-o',         '--outDir',   type=str, default=".",    help="output directory")
 parser.add_argument('-eraVFP',    '--eraVFP',   type=str, default="",     help="Specify one key in ['preVFP','postVFP'] to run on UL2016 MC samples. Only works with --isMC and --dataYear 2016")
 parser.add_argument('-condor'   , '--condor',  action='store_true',     help="run on condor instead of locally or on crab")
 parser.add_argument('-d'         , '--dsdir'    , type=str , default="", help="input directory of dataset, to be given with condor option!")
 parser.add_argument('-n'         , '--nfiles'   , type=int , default=5 , help="number of files to run per condor job")
+parser.add_argument('-j'         , '--jobname'  , type=str , default="" , help="Assign name to condor job, for easier tracking (by default the cluster ID is by condor_q)")
+parser.add_argument('-t'         , '--runtime'  , type=int , default=43200 , help="MaxRunTime for condor jobs, in seconds")
 parser.add_argument('-condorDir' , '--condorDir', type=str , default="", help="Mandatory to run with condor, specify output folder to save condor files, logs, etc...")
 parser.add_argument('-condorSkipFiles' , '--condorSkipFiles', type=str , default="", help="When using condor, can specify a file containing a list of files to be skipped (useful for resubmitting failed jobs)")
 parser.add_argument('-condorSelectFiles' , '--condorSelectFiles', type=str , default="", help="As --condorSkipFiles, but keep only these ones (useful for resubmitting failed jobs)")
@@ -103,6 +117,16 @@ outDir = args.outDir
 eraVFP = args.eraVFP
 
 isData = not isMC
+
+if args.runOnlySkim and not args.doSkim:
+    print "--runOnlySkim requires --doSkim {1,2}"
+    exit(1)
+
+if outDir not in [".", "./"]:
+    print "Creating output directory"
+    cmd = "mkdir -p {d}".format(d=outDir)
+    print cmd
+    os.system(cmd)
 
 print "isMC =", bcolors.OKBLUE, isMC, bcolors.ENDC, \
     "genOnly =", bcolors.OKBLUE, genOnly, bcolors.ENDC, \
@@ -189,10 +213,16 @@ else:
     else : 
         input_files.extend( inputFile.split(',') )
 
-bob=SequenceBuilder(isMC, dataYear, runPeriod, jesUncert, eraVFP, passall, genOnly, isTest)
+bob=SequenceBuilder(isMC, dataYear, runPeriod, jesUncert, eraVFP, passall, genOnly, 
+                    addOptional=True, 
+                    onlyTestModules=isTest, 
+                    doSkim=args.doSkim, 
+                    runOnlySkim=args.runOnlySkim)
 modules=bob.buildFinalSequence()
 
-treecut = ("Entry$<" + str(maxEvents) if maxEvents > 0 else None)
+# better to use the maxEntries argument of PostProcessor (so that one can use it inside that class)
+#treecut = ("Entry$<" + str(maxEvents) if maxEvents > 0 else None)
+treecut = None
 kd_file = "keep_and_drop"
 if isMC:
     kd_file += "_MC"
@@ -239,6 +269,9 @@ if args.condor:
                 if len(selectFiles) and all(filename not in str(x) for x in selectFiles): continue
                 listoffiles.append(xrdindir+os.path.join(root, filename))
 
+    # shuffle input list, because some input files are much larger than others, and it this way we ensure that the run time is more uniform among different jobs
+    random.shuffle(listoffiles) # this modifies the array
+
     listoffilechunks = []
     for ff in range(len(listoffiles)/args.nfiles+1):
         listoffilechunks.append(listoffiles[ff*args.nfiles:args.nfiles*(ff+1)])
@@ -265,19 +298,36 @@ getenv      = True
 environment = "LS_SUBCWD={here}"
 transfer_output_files = ""
 request_memory = 2000
-+MaxRuntime = 20000 \n\n'''.format(here=os.environ['PWD'])
-
+transfer_output_files = ""
++MaxRuntime = {t}\n'''.format(here=os.environ['PWD'],t=args.runtime)
+    if args.jobname:
+        job_desc += '+JobBatchName = "%s"\n' % args.jobname
     # some customization
     if os.environ['USER'] in ['mdunser', 'kelong', 'bendavid']:
         job_desc += '+AccountingGroup = "group_u_CMST3.all"\n'
     if os.environ['USER'] in ['mciprian']:
         job_desc += '+AccountingGroup = "group_u_CMS.CAF.ALCA"\n' 
     ##
+    job_desc += '\n'
+
     tmp_condor = open(tmp_condor_filename,'w')
     tmp_condor.write(job_desc)
     for il,fs in enumerate(listoffilechunks):
         if not len(fs): continue
-        tmp_condor.write('arguments = {od} {pwd}/postproc.py  --isMC {isMC} --eraVFP {eraVFP} --dataYear {y} --passall {pa} -iFile {files} \n'.format(isMC=isMC,eraVFP=eraVFP,y=dataYear, pa=passall, files=','.join(fs),od=outDir,pwd=os.environ['PWD']))
+        flags = ""
+        if isMC:
+            flags += "--eraVFP {e}".format(e=eraVFP)
+        else:
+            if runPeriod:
+                flags += " --runPeriod {rp}".format(rp=runPeriod)
+        if args.doSkim:
+            flags += " --doSkim {sk}".format(sk=args.doSkim)
+        if args.runOnlySkim:
+            flags += " --runOnlySkim"
+        if args.noPostfixSkim:
+            flags += " --noPostfixSkim"
+            
+        tmp_condor.write('arguments = {od} {pwd}/postproc.py  --isMC {isMC} --dataYear {y} --passall {pa} {flags} -iFile {files}\n'.format(isMC=isMC,y=dataYear, pa=passall, flags=flags, files=','.join(fs),od=outDir,pwd=os.environ['PWD']))
         tmp_condor.write('''
 Log        = {cd}/log_condor_{dm}{rp}_chunk{ch}.log
 Output     = {cd}/log_condor_{dm}{rp}_chunk{ch}.out
@@ -289,14 +339,17 @@ Error      = {cd}/log_condor_{dm}{rp}_chunk{ch}.error\n'''.format(cd=args.condor
 
 else:
     p = PostProcessor(outputDir=outDir,  
-                  inputFiles=(input_files if crab==0 else inputFiles()),
-                  cut=treecut,      
-                  modules=modules,
-                  provenance=True,
-                  outputbranchsel=kd_file,
-                  fwkJobReport=(False if crab==0 else True),
-                  jsonInput=(None if crab==0 else runsAndLumis()),
-                  compression="LZMA:9"
+                      inputFiles=(input_files if crab==0 else inputFiles()),
+                      cut=treecut,      
+                      modules=modules,
+                      provenance=True,
+                      outputbranchsel=kd_file,
+                      maxEntries=maxEvents if maxEvents>0 else None,
+                      fwkJobReport=(False if crab==0 else True),
+                      jsonInput=(None if crab==0 else runsAndLumis()),
+                      compression="LZMA:9",
+                      saveHistoGenWeights=(True if isMC else False),
+                      allowNoPostfix=args.noPostfixSkim
                   )
     p.run()
 

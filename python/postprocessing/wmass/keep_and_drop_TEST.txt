@@ -2,13 +2,9 @@ drop *
 keep event*
 keep run*
 keep puW*
-keep Pileup*
 keep luminosityBlock*
 keep genWeight*
-keep Generator*
-keep GenPart*
-keep LHEWeight*
-keep PV*
 keep Muon*
 keep TrigObj*
+keep nJet*
 keep Jet*
