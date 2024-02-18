@@ -54,12 +54,12 @@ class LHEPrinter(object):
     else:
       self.tree = theTree # assume that we were given a TFile directly
     self.undoDecays = undoDecays
-    self.baseheader =  "<event nplo=\" {nplo} \" npnlo=\" {npnlo} \">\n"
+    self.baseheader =  "<event>\n"
     self.baseline1 = " {nparts}      {prid} {weight} {scale} {aqed} {aqcd}\n"
     self.rwgt = "#rwgt            {rwl_type}          {rwl_index}   {rwl_weight}        {rwl_seed}        {rwl_n1}           {rwl_n2}\n"
     self.baseender = "<rwgt>\n</rwgt>\n</event>\n"
     self.chunkers = chunkers
-
+  
   def insideLoop(self):
     """ Loop over all events and process the root file into a plain text LHE file"""
     totalEvents = self.tree.GetEntries()
@@ -89,10 +89,20 @@ class LHEPrinter(object):
       self.process(ev)
     
     self.output.write('</LesHouchesEvents>')
+    self.output.close()
 
+  def beginFile(self):
+    self.output = open(self.outputLHE,"w")
+    self.output.write('<LesHouchesEvents version="1.0">\n')
+    self.output.write('<init>\n%s\n</init>\n' % self.fil.Get('LHEInit'))
+  
+  def endFile(self):
+    self.output.write('</LesHouchesEvents>')
+    self.output.close()
+  
   def process(self, ev):
-    """First produce the global line like <event nplo=" -1 " npnlo=" 1 ">"""
-    self.output.write(self.baseheader.format(nplo = ord(str(ev.LHE_NpLO)) if ord(str(ev.LHE_NpLO)) != 255  else  -1, npnlo = ord(str(ev.LHE_NpNLO)) if ord(str(ev.LHE_NpNLO)) != 255  else  -1))
+    """First produce the global line like <event>"""
+    self.output.write(self.baseheader)
 
     """Then we need to treat the whole thing to undo the madspin decays, update statuses and rewrite particle order"""
     lhepart = []

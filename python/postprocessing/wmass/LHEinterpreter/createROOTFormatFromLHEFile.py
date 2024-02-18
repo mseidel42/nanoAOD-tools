@@ -12,8 +12,9 @@ class LHEToRootConversor(object):
     defaults : default values of the parameters (not read from the banner, technically can be random values as it will be overwritten)
     """
     # Load lhe file
+    print "Hello world..."
     self.lhefile = lhefile
-    self.inp     = gzip.open(self.lhefile,"rb")
+    self.inp     = open(self.lhefile,"rb")
     print "Loading whole LHE file, this might take a while..."
     self.thelines = self.inp.readlines()
     self.dictEntries = dictEntries
@@ -25,7 +26,7 @@ class LHEToRootConversor(object):
     self.nWeights = len(self.weightVars) 
     
     # Build output file
-    self.outputRootFile = ROOT.TFile(self.lhefile.replace(".lhe.gz",".root"), "RECREATE")
+    self.outputRootFile = ROOT.TFile(self.lhefile.replace(".lhe",".root"), "RECREATE")
     self.sf = self.outputRootFile.mkdir("sf")
     self.outputTree = ROOT.TTree("t","LHEweight tree")
     self.initTree()
@@ -118,8 +119,9 @@ class LHEToRootConversor(object):
             self.central = int(currentWeightName.replace("rwgt_",""))-1
             print "Found all parameters at 0 (SM-like candidate) at weight %s"%currentWeightName
 
-for df in os.listdir("output"):
-  print  "Processing file...", df
-  if "root" in df: continue
-  if os.path.isfile("output/"+df.replace(".lhe.gz",".root")): continue
-  LHEToRootConversor("output/" + df, {"dim6 1":"cwww","dim6 2":"cw","dim6 3":"cb", "dim6 4":"cPwww","dim6 5":"cPw", "dim6 6":"cPhid","dim6 7":"cPhiW","dim6 8":"cPhib"}, {"dim6 1":3,"dim6 2":4,"dim6 3":150, "dim6 4":100,"dim6 5":100, "dim6 6":100,"dim6 7":100,"dim6 8":100})
+LHEToRootConversor('tmplhe/cmsgrid_final.lhe', {1500: 'mass80279'})
+# for df in os.listdir("output"):
+  # print  "Processing file...", df
+  # if "root" in df: continue
+  # if os.path.isfile("output/"+df.replace(".lhe.gz",".root")): continue
+  # LHEToRootConversor("output/" + df)

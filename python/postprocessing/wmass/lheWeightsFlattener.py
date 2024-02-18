@@ -7,7 +7,7 @@ class lheWeightsFlattener(Module):
         self.NumScaleWeights = 18 # 18 for MiNNLO since it has NNPDF3.0 weights too, 9 for other samples
         self.maxMassShift = 100
         self.massGrid = 10
-        self.cenMassWgt = 11
+        self.cenMassWgt = 10 # 12 for Z?
 
     def beginJob(self):
         pass

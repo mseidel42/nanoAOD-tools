@@ -20,6 +20,7 @@ from PhysicsTools.NanoAODTools.postprocessing.wmass.CSVariables import *
 from PhysicsTools.NanoAODTools.postprocessing.wmass.Wproducer import *
 from PhysicsTools.NanoAODTools.postprocessing.wmass.genLepSelection import *
 from PhysicsTools.NanoAODTools.postprocessing.wmass.lheWeightsFlattener import *
+from PhysicsTools.NanoAODTools.postprocessing.wmass.massWeightsCorrection import *
 
 class bcolors:
     HEADER = '\033[95m'
@@ -148,6 +149,7 @@ if isMC:
 		            CSAngleModule(), 
 	                WproducerModule(),
 	                flattenLheWeightsModule(),
+                    correctMassWeightsModule(),
                    ]
         # add before recoZproducer
         if muonScaleRes!= None: modules.insert(3, muonScaleRes())
@@ -194,4 +196,4 @@ p = PostProcessor(outputDir=".",
 p.run()
 
 print "DONE"
-os.system("ls -lR")
+# os.system("ls -lR")
